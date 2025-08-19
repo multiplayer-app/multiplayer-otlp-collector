@@ -1,0 +1,139 @@
+extensions:
+  healthcheckv2:
+    use_v2: true
+    component_health:
+      include_permanent_errors: false
+      include_recoverable_errors: true
+      recovery_duration: 5m
+    http:
+      endpoint: "0.0.0.0:13133"
+      status:
+        enabled: true
+        path: "/health/status"
+      config:
+        enabled: true
+        path: "/health/config"
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+          allowed_headers:
+            - "*"
+
+processors:
+  transform/set_trace_type:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - set(resource.attributes["multiplayer.trace_type"], Substring(trace_id.string, 0, 6))
+    log_statements:
+      - context: log
+        statements:
+          - set(resource.attributes["multiplayer.trace_type"], Substring(trace_id.string, 0, 6))
+
+  batch:
+    send_batch_size: 5
+    send_batch_max_size: 5
+    timeout: 3s
+
+  memory_limiter/deb:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+  memory_limiter/cdb:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+  resourcedetection/system:
+    detectors: [ "system" ]
+    system:
+      hostname_sources: [ "os" ]
+
+  filter/deb:
+    error_mode: ignore
+    traces:
+      span:
+        - resource.attributes["multiplayer.trace_type"] != "debdeb"
+        - attributes["http.target"] == "/jaeger/v1/traces"
+        - attributes["http.target"] == "/v1/traces"
+        - attributes["http.target"] == "/v1/logs"
+        - attributes["http.route"] == "/health"
+        - attributes["http.route"] == "/healthz"
+    logs:
+      log_record:
+        - resource.attributes["multiplayer.trace_type"] != "debdeb"
+
+  filter/cdb:
+    error_mode: ignore
+    traces:
+      span:
+        - resource.attributes["multiplayer.trace_type"] != "cdbcdb"
+        - attributes["http.target"] == "/jaeger/v1/traces"
+        - attributes["http.target"] == "/v1/traces"
+        - attributes["http.target"] == "/v1/logs"
+        - attributes["http.route"] == "/health"
+        - attributes["http.route"] == "/healthz"
+    logs:
+      log_record:
+        - resource.attributes["multiplayer.trace_type"] != "cdbcdb"
+
+exporters:
+  otlphttp/multiplayer:
+    endpoint: "${MULTIPLAYER_OTLP_COLLECTOR_ENDPOINT}"
+    headers:
+      Authorization: "${MULTIPLAYER_OTLP_KEY}"
+    timeout: 10s
+    encoding: json
+
+service:
+  extensions: [ healthcheckv2 ]
+
+  pipelines:
+    traces/deb:
+      receivers: [ otlp ]
+      processors:
+        - transform/set_trace_type
+        - filter/deb
+        - memory_limiter/deb
+        - resourcedetection/system
+        - batch
+      exporters: [ otlphttp/multiplayer ]
+
+    logs/deb:
+      receivers: [ otlp ]
+      processors:
+        - transform/set_trace_type
+        - filter/deb
+        - memory_limiter/deb
+        - batch
+      exporters: [ otlphttp/multiplayer ]
+
+    traces/cdb:
+      receivers: [ otlp ]
+      processors:
+        - transform/set_trace_type
+        - filter/cdb
+        - memory_limiter/cdb
+        - resourcedetection/system
+        - batch
+      exporters: [ otlphttp/multiplayer ]
+
+    logs/cdb:
+      receivers: [ otlp ]
+      processors:
+        - transform/set_trace_type
+        - filter/cdb
+        - memory_limiter/cdb
+        - resourcedetection/system
+        - batch
+      exporters: [ otlphttp/multiplayer ]

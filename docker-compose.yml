@@ -1,0 +1,17 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib-dev:e9276a78341765d080347ee23f274f01e562fe5a
+    platform: linux/amd64
+    container_name: otel-collector
+    hostname: otel-collector
+    restart: on-failure
+    ports:
+      - "4317:4317"   # gRPC OTLP
+      - "4318:4318"   # HTTP OTLP
+      - "13133:13133" # Health check
+    command: ["--config=/etc/otel/config.yaml"]
+    environment:
+      MULTIPLAYER_OTLP_KEY: "{{MULTIPLAYER_OTLP_KEY}}"
+      MULTIPLAYER_OTLP_COLLECTOR_ENDPOINT: https://otlp.multiplayer.app:443
+    volumes:
+      - ./config.yaml:/etc/otel/config.yaml
