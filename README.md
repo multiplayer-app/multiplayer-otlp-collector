@@ -1,3 +1,31 @@
+![Description](.github/header-otlpCollector.png)
+
+<div align="center">
+<a href="https://github.com/multiplayer-app/multiplayer-otlp-collector">
+  <img src="https://img.shields.io/github/stars/multiplayer-app/multiplayer-otlp-collector.svg?style=social&label=Star&maxAge=2592000" alt="GitHub stars">
+</a>
+  <a href="https://github.com/multiplayer-app/multiplayer-otlp-collector/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/multiplayer-app/multiplayer-otlp-collector" alt="License">
+  </a>
+  <a href="https://multiplayer.app">
+    <img src="https://img.shields.io/badge/Visit-multiplayer.app-blue" alt="Visit Multiplayer">
+  </a>
+  
+</div>
+<div>
+  <p align="center">
+    <a href="https://x.com/trymultiplayer">
+      <img src="https://img.shields.io/badge/Follow%20on%20X-000000?style=for-the-badge&logo=x&logoColor=white" alt="Follow on X" />
+    </a>
+    <a href="https://www.linkedin.com/company/multiplayer-app/">
+      <img src="https://img.shields.io/badge/Follow%20on%20LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="Follow on LinkedIn" />
+    </a>
+    <a href="https://discord.com/invite/q9K3mDzfrx">
+      <img src="https://img.shields.io/badge/Join%20our%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join our Discord" />
+    </a>
+  </p>
+</div>
+
 # Multiplayer OTLP Collector
 
 A custom OpenTelemetry Collector configuration for Multiplayer's telemetry data processing and routing.
@@ -29,6 +57,7 @@ docker-compose up -d
 ```
 
 The collector will start and be available on:
+
 - **gRPC endpoint**: `localhost:4317`
 - **HTTP endpoint**: `localhost:4318`
 - **Health check**: `http://localhost:13133/health/status`
@@ -63,8 +92,8 @@ services:
     hostname: otel-collector
     restart: on-failure
     ports:
-      - "4317:4317"   # gRPC OTLP
-      - "4318:4318"   # HTTP OTLP
+      - "4317:4317" # gRPC OTLP
+      - "4318:4318" # HTTP OTLP
       - "13133:13133" # Health check
     command: ["--config=/etc/otel/config.yaml"]
     environment:
@@ -147,9 +176,9 @@ processors:
     spike_limit_percentage: 20
 
   resourcedetection/system:
-    detectors: [ "system" ]
+    detectors: ["system"]
     system:
-      hostname_sources: [ "os" ]
+      hostname_sources: ["os"]
 
   filter/deb:
     error_mode: ignore
@@ -200,47 +229,47 @@ exporters:
     encoding: json
 
 service:
-  extensions: [ healthcheckv2 ]
+  extensions: [healthcheckv2]
 
   pipelines:
     traces/deb:
-      receivers: [ otlp ]
+      receivers: [otlp]
       processors:
         - transform/set_trace_type
         - filter/deb
         - memory_limiter/deb
         - resourcedetection/system
         - batch
-      exporters: [ otlphttp/multiplayer ]
+      exporters: [otlphttp/multiplayer]
 
     logs/deb:
-      receivers: [ otlp ]
+      receivers: [otlp]
       processors:
         - transform/set_trace_type
         - filter/deb
         - memory_limiter/deb
         - batch
-      exporters: [ otlphttp/multiplayer ]
+      exporters: [otlphttp/multiplayer]
 
     traces/cdb:
-      receivers: [ otlp ]
+      receivers: [otlp]
       processors:
         - transform/set_trace_type
         - filter/cdb
         - memory_limiter/cdb
         - resourcedetection/system
         - batch
-      exporters: [ otlphttp/multiplayer ]
+      exporters: [otlphttp/multiplayer]
 
     logs/cdb:
-      receivers: [ otlp ]
+      receivers: [otlp]
       processors:
         - transform/set_trace_type
         - filter/cdb
         - memory_limiter/cdb
         - resourcedetection/system
         - batch
-      exporters: [ otlphttp/multiplayer ]
+      exporters: [otlphttp/multiplayer]
 ```
 
 This is a configuration file for the OpenTelemetry Collector, describing how to receive data from receivers, process it, and export it to specified destinations. Here’s a detailed explanation of each section:
@@ -265,6 +294,7 @@ receivers:
 ```
 
 ### Processors
+
 `processors` define the intermediate steps used to process data. In this configuration file, no processors are defined.
 
 ```yaml
@@ -308,57 +338,56 @@ health_check: Sets up a health check extension to monitor the health of the Open
 exporters are the exit points for data out of the OpenTelemetry Collector.
 
 ```yaml
-  otlphttp/multiplayer:
-    # ...
+otlphttp/multiplayer:
+  # ...
 ```
-
 
 ## Service
 
-service defines the service configuration for the OpenTelemetry 
+service defines the service configuration for the OpenTelemetry
 Collector, including data pipelines.
 
 ```yaml
 service:
-  extensions: [ healthcheckv2 ]
+  extensions: [healthcheckv2]
 
   pipelines:
     traces/deb:
-      receivers: [ otlp ]
+      receivers: [otlp]
       processors:
         - transform/set_trace_type
         - filter/deb
         - memory_limiter/deb
         - resourcedetection/system
         - batch
-      exporters: [ otlphttp/multiplayer ]
+      exporters: [otlphttp/multiplayer]
 
     logs/deb:
-      receivers: [ otlp ]
+      receivers: [otlp]
       processors:
         - transform/set_trace_type
         - filter/deb
         - memory_limiter/deb
         - batch
-      exporters: [ otlphttp/multiplayer ]
+      exporters: [otlphttp/multiplayer]
 
     traces/cdb:
-      receivers: [ otlp ]
+      receivers: [otlp]
       processors:
         - transform/set_trace_type
         - filter/cdb
         - memory_limiter/cdb
         - resourcedetection/system
         - batch
-      exporters: [ otlphttp/multiplayer ]
+      exporters: [otlphttp/multiplayer]
 
     logs/cdb:
-      receivers: [ otlp ]
+      receivers: [otlp]
       processors:
         - transform/set_trace_type
         - filter/cdb
         - memory_limiter/cdb
         - resourcedetection/system
         - batch
-      exporters: [ otlphttp/multiplayer ]
+      exporters: [otlphttp/multiplayer]
 ```
