@@ -4,7 +4,7 @@
 <a href="https://github.com/multiplayer-app/multiplayer-otlp-collector">
   <img src="https://img.shields.io/github/stars/multiplayer-app/multiplayer-otlp-collector.svg?style=social&label=Star&maxAge=2592000" alt="GitHub stars">
 </a>
-  <a href="https://github.com/multiplayer-app/multiplayer-otlp-collector/blob/main/LICENSE">
+  <a href="./LICENSE">
     <img src="https://img.shields.io/github/license/multiplayer-app/multiplayer-otlp-collector" alt="License">
   </a>
   <a href="https://multiplayer.app">
