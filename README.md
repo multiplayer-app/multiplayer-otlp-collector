@@ -26,25 +26,30 @@
   </p>
 </div>
 
-# Multiplayer OTLP Collector
+# Multiplayer OpenTelemetry (OTLP) Collector
 
-A custom OpenTelemetry Collector configuration for Multiplayer's telemetry data processing and routing.
 
-## Overview
+The OpenTelemetry Collector offers a vendor-agnostic implementation of how to receive, process and export telemetry data. It removes the need to run, operate, and maintain multiple agents/collectors. This works with improved scalability and supports open source observability data formats (e.g. Jaeger, Prometheus, Fluent Bit, etc.) sending to one or more open source or commercial backends.
 
-This OTLP Collector is designed to receive, process, and forward telemetry data (traces and logs) to Multiplayer's API. It includes specialized filtering and processing for different trace types used by Multiplayer's session recording and debugging features.
+This repository provides an example OpenTelemetry Collector configuration which sends OTLP traces/logs for Multiplayer Full Stack Session recordings to Multiplayer while also sending OTLP data to any other observability platform.
+
+Learn more about the OpenTelemetry Collector and configuration here: https://opentelemetry.io/docs/collector/
 
 ## Prerequisites
 
-- Docker and Docker Compose installed
-- Multiplayer API credentials (OTLP key)
+- Docker and Docker Compose: https://www.docker.com/
+- Multiplayer API credentials (OTLP key): https://www.multiplayer.app/docs/
 - Network access to `https://otlp.multiplayer.app:443`
 
 ## Quick Start
 
-### Launch the Collector
+### Run the Collector
 
-Docker-compose [configuration](./docker-compose.yml) 
+Source code for the OTLP Collector can be found here: https://github.com/open-telemetry/opentelemetry-collector-contrib
+
+Prebuilt docker images can be found here: https://hub.docker.com/r/otel/opentelemetry-collector-contrib
+
+Below is docker-compose [configuration](./docker-compose.yml) which will start to run OTLP Collector which will run on default ports:
 
 ```yaml
 services:
@@ -76,8 +81,15 @@ The collector will start and be available on:
 - **HTTP endpoint**: `localhost:4318`
 - **Health check**: `http://localhost:13133/health/status`
 
+### Environment variables
 
-### Configuration
+Docker compose will set the following environment variables:
+- `MULTIPLAYER_OTLP_COLLECTOR_ENDPOINT = https://otlp.multiplayer.app:443`
+- `MULTIPLAYER_OTLP_KEY = {{YOUR_MULTIPLAYER_OTLP_KEY}}` 
+
+OTLP configuration will replace environment variables in following way: `${ENVIRONMENT_VARIABLE_NAME}`
+
+### OTLP Collector Configuration
 
 The [config.yaml](./config.yaml) file defines the collector's behavior:
 
@@ -101,147 +113,6 @@ extensions:
       config:
         enabled: true
         path: "/health/config"
-
-receivers:
-  otlp:
-    protocols:
-      grpc:
-        endpoint: 0.0.0.0:4317
-      http:
-        endpoint: 0.0.0.0:4318
-        cors:
-          allowed_origins:
-            - "*"
-          allowed_headers:
-            - "*"
-
-processors:
-  transform/set_trace_type:
-    error_mode: ignore
-    trace_statements:
-      - context: span
-        statements:
-          - set(resource.attributes["multiplayer.trace_type"], Substring(trace_id.string, 0, 6))
-    log_statements:
-      - context: log
-        statements:
-          - set(resource.attributes["multiplayer.trace_type"], Substring(trace_id.string, 0, 6))
-
-  groupbytrace:
-    wait_duration: 10s
-    num_traces: 1000
-    num_workers: 2
-
-  batch:
-    send_batch_size: 5
-    send_batch_max_size: 5
-    timeout: 3s
-
-  memory_limiter/deb:
-    check_interval: 1s
-    limit_percentage: 80
-    spike_limit_percentage: 20
-
-  memory_limiter/cdb:
-    check_interval: 1s
-    limit_percentage: 80
-    spike_limit_percentage: 20
-
-  resourcedetection/system:
-    detectors: ["system"]
-    system:
-      hostname_sources: ["os"]
-
-  filter/deb:
-    error_mode: ignore
-    traces:
-      span:
-        - resource.attributes["multiplayer.trace_type"] != "debdeb"
-        - attributes["http.target"] == "/jaeger/v1/traces"
-        - attributes["http.target"] == "/v1/traces"
-        - attributes["http.target"] == "/v1/logs"
-        - attributes["http.route"] == "/health"
-        - attributes["http.route"] == "/healthz"
-    logs:
-      log_record:
-        - resource.attributes["multiplayer.trace_type"] != "debdeb"
-
-  filter/cdb:
-    error_mode: ignore
-    traces:
-      span:
-        - resource.attributes["multiplayer.trace_type"] != "cdbcdb"
-        - attributes["http.target"] == "/jaeger/v1/traces"
-        - attributes["http.target"] == "/v1/traces"
-        - attributes["http.target"] == "/v1/logs"
-        - attributes["http.route"] == "/health"
-        - attributes["http.route"] == "/healthz"
-    logs:
-      log_record:
-        - resource.attributes["multiplayer.trace_type"] != "cdbcdb"
-
-  filter/not-deb-cdb:
-    error_mode: ignore
-    traces:
-      span:
-        - attributes["multiplayer.trace_type"] != "debdeb"
-        - attributes["multiplayer.trace_type"] != "cdbcdb"
-        - attributes["http.target"] == "/jaeger/v1/traces"
-        - attributes["http.target"] == "/v1/traces"
-        - attributes["http.target"] == "/v1/logs"
-        - attributes["http.route"] == "/health"
-        - attributes["http.route"] == "/healthz"
-
-exporters:
-  otlphttp/multiplayer:
-    endpoint: "${MULTIPLAYER_OTLP_COLLECTOR_ENDPOINT}"
-    headers:
-      Authorization: "${MULTIPLAYER_OTLP_KEY}"
-    timeout: 10s
-    encoding: json
-
-service:
-  extensions: [healthcheckv2]
-
-  pipelines:
-    traces/deb:
-      receivers: [otlp]
-      processors:
-        - transform/set_trace_type
-        - filter/deb
-        - memory_limiter/deb
-        - resourcedetection/system
-        - batch
-      exporters: [otlphttp/multiplayer]
-
-    logs/deb:
-      receivers: [otlp]
-      processors:
-        - transform/set_trace_type
-        - filter/deb
-        - memory_limiter/deb
-        - batch
-      exporters: [otlphttp/multiplayer]
-
-    traces/cdb:
-      receivers: [otlp]
-      processors:
-        - transform/set_trace_type
-        - filter/cdb
-        - memory_limiter/cdb
-        - resourcedetection/system
-        - batch
-      exporters: [otlphttp/multiplayer]
-
-    logs/cdb:
-      receivers: [otlp]
-      processors:
-        - transform/set_trace_type
-        - filter/cdb
-        - memory_limiter/cdb
-        - resourcedetection/system
-        - batch
-      exporters: [otlphttp/multiplayer]
 ```
 
 This is a configuration file for the OpenTelemetry Collector, describing how to receive data from receivers, process it, and export it to specified destinations. Here’s a detailed explanation of each section:
@@ -277,25 +148,25 @@ processors:
   batch:
     # export collected traces in batches
 
-  memory_limiter/deb:
+  memory_limiter/multiplayer_session_recorder_manual:
     # limit memory usage for multiplayer traces
 
-  memory_limiter/cdb:
+  memory_limiter/multiplayer_session_recorder_continuous:
     # limit memory usage for multiplayer traces
 
   resourcedetection/system:
-    # automatically detects and adds resource attributes to telemetry dataa
+    # automatically detects and adds resource attributes to telemetry data
 
-  filter/deb:
-    # leave only session recorder traces
+  filter/multiplayer_session_recorder_manual:
+    # leave only manual session recorder traces
 
-  filter/cdb:
-    # leave only session recorder traces
+  filter/multiplayer_session_recorder_continuous:
+    # leave only continuous session recorder traces
 ```
 
 ### Extensions
 
-extensions are additional functional modules, such as health checks.
+Extensions are additional functional modules, such as health checks.
 
 ```yaml
 extensions:
@@ -303,20 +174,25 @@ extensions:
     # ...
 ```
 
-health_check: Sets up a health check extension to monitor the health of the OpenTelemetry Collector.
+`health_check`: Sets up a health check extension to monitor the health of the OpenTelemetry Collector.
 
 ### Exporters
 
-exporters are the exit points for data out of the OpenTelemetry Collector.
+Exporters are the exit points for data out of the OpenTelemetry Collector.
 
 ```yaml
-otlphttp/multiplayer:
-  # ...
+exporters:
+  otlphttp/multiplayer:
+    endpoint: "${MULTIPLAYER_OTLP_COLLECTOR_ENDPOINT}"
+    headers:
+      Authorization: "${MULTIPLAYER_OTLP_KEY}"
+    timeout: 10s
+    encoding: json
 ```
 
 ## Service
 
-service defines the service configuration for the OpenTelemetry
+Service defines the service configuration for the OpenTelemetry
 Collector, including data pipelines.
 
 ```yaml
@@ -324,41 +200,41 @@ service:
   extensions: [healthcheckv2]
 
   pipelines:
-    traces/deb:
+    traces/multiplayer_session_recorder_manual:
       receivers: [otlp]
       processors:
         - transform/set_trace_type
-        - filter/deb
-        - memory_limiter/deb
+        - filter/multiplayer_session_recorder_manual
+        - memory_limiter/multiplayer_session_recorder_manual
         - resourcedetection/system
         - batch
       exporters: [otlphttp/multiplayer]
 
-    logs/deb:
+    logs/multiplayer_session_recorder_manual:
       receivers: [otlp]
       processors:
         - transform/set_trace_type
-        - filter/deb
-        - memory_limiter/deb
+        - filter/multiplayer_session_recorder_manual
+        - memory_limiter/multiplayer_session_recorder_manual
         - batch
       exporters: [otlphttp/multiplayer]
 
-    traces/cdb:
+    traces/multiplayer_session_recorder_continuous:
       receivers: [otlp]
       processors:
         - transform/set_trace_type
-        - filter/cdb
-        - memory_limiter/cdb
+        - filter/multiplayer_session_recorder_continuous
+        - memory_limiter/multiplayer_session_recorder_continuous
         - resourcedetection/system
         - batch
       exporters: [otlphttp/multiplayer]
 
-    logs/cdb:
+    logs/multiplayer_session_recorder_continuous:
       receivers: [otlp]
       processors:
         - transform/set_trace_type
-        - filter/cdb
-        - memory_limiter/cdb
+        - filter/multiplayer_session_recorder_continuous
+        - memory_limiter/multiplayer_session_recorder_continuous
         - resourcedetection/system
         - batch
       exporters: [otlphttp/multiplayer]

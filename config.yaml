@@ -28,6 +28,7 @@ receivers:
             - "*"
 
 processors:
+  # set multiplayer trace type
   transform/set_trace_type:
     error_mode: ignore
     trace_statements:
@@ -38,28 +39,33 @@ processors:
       - context: log
         statements:
           - set(resource.attributes["multiplayer.trace_type"], Substring(trace_id.string, 0, 6))
-
+  
+  # export collected traces in batches
   batch:
     send_batch_size: 5
     send_batch_max_size: 5
     timeout: 3s
 
-  memory_limiter/deb:
+  # limit memory usage for multiplayer traces
+  memory_limiter/multiplayer_session_recorder_manual:
     check_interval: 1s
     limit_percentage: 80
     spike_limit_percentage: 20
 
-  memory_limiter/cdb:
+  # limit memory usage for multiplayer traces
+  memory_limiter/multiplayer_session_recorder_continuous:
     check_interval: 1s
     limit_percentage: 80
     spike_limit_percentage: 20
 
+  # automatically detects and adds resource attributes to telemetry data
   resourcedetection/system:
     detectors: [ "system" ]
     system:
       hostname_sources: [ "os" ]
 
-  filter/deb:
+  # leave only manual session recorder traces
+  filter/multiplayer_session_recorder_manual:
     error_mode: ignore
     traces:
       span:
@@ -73,7 +79,8 @@ processors:
       log_record:
         - resource.attributes["multiplayer.trace_type"] != "debdeb"
 
-  filter/cdb:
+  # leave only continuous session recorder traces
+  filter/multiplayer_session_recorder_continuous:
     error_mode: ignore
     traces:
       span:
@@ -99,41 +106,44 @@ service:
   extensions: [ healthcheckv2 ]
 
   pipelines:
-    traces/deb:
+    traces/multiplayer_session_recorder_manual:
       receivers: [ otlp ]
       processors:
         - transform/set_trace_type
-        - filter/deb
-        - memory_limiter/deb
+        - filter/multiplayer_session_recorder_manual
+        - memory_limiter/multiplayer_session_recorder_manual
         - resourcedetection/system
         - batch
       exporters: [ otlphttp/multiplayer ]
 
-    logs/deb:
+    logs/multiplayer_session_recorder_manual:
       receivers: [ otlp ]
       processors:
         - transform/set_trace_type
-        - filter/deb
-        - memory_limiter/deb
+        - filter/multiplayer_session_recorder_manual
+        - memory_limiter/multiplayer_session_recorder_manual
         - batch
       exporters: [ otlphttp/multiplayer ]
 
-    traces/cdb:
+    traces/multiplayer_session_recorder_continuous:
       receivers: [ otlp ]
       processors:
         - transform/set_trace_type
-        - filter/cdb
-        - memory_limiter/cdb
+        - filter/multiplayer_session_recorder_continuous
+        - memory_limiter/multiplayer_session_recorder_continuous
         - resourcedetection/system
         - batch
       exporters: [ otlphttp/multiplayer ]
 
-    logs/cdb:
+    logs/multiplayer_session_recorder_continuous:
       receivers: [ otlp ]
       processors:
         - transform/set_trace_type
-        - filter/cdb
-        - memory_limiter/cdb
+        - filter/multiplayer_session_recorder_continuous
+        - memory_limiter/multiplayer_session_recorder_continuous
         - resourcedetection/system
         - batch
       exporters: [ otlphttp/multiplayer ]
+
+
+# add comments here
