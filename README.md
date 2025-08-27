@@ -42,46 +42,9 @@ This OTLP Collector is designed to receive, process, and forward telemetry data 
 
 ## Quick Start
 
-### 1. Set Environment Variables
+### Launch the Collector
 
-Create a `.env` file in the project root:
-
-```bash
-MULTIPLAYER_OTLP_KEY=your_multiplayer_otlp_key_here
-```
-
-### 2. Launch the Collector
-
-```bash
-docker-compose up -d
-```
-
-The collector will start and be available on:
-
-- **gRPC endpoint**: `localhost:4317`
-- **HTTP endpoint**: `localhost:4318`
-- **Health check**: `http://localhost:13133/health/status`
-
-### 3. Verify Deployment
-
-Check the collector status:
-
-```bash
-# Check container status
-docker-compose ps
-
-# Check logs
-docker-compose logs otel-collector
-
-# Check health endpoint
-curl http://localhost:13133/health/status
-```
-
-## Configuration
-
-### Docker Compose Configuration
-
-The `docker-compose.yml` file defines the collector service:
+Docker-compose [configuration](./docker-compose.yml) 
 
 ```yaml
 services:
@@ -92,8 +55,8 @@ services:
     hostname: otel-collector
     restart: on-failure
     ports:
-      - "4317:4317" # gRPC OTLP
-      - "4318:4318" # HTTP OTLP
+      - "4317:4317"   # gRPC OTLP
+      - "4318:4318"   # HTTP OTLP
       - "13133:13133" # Health check
     command: ["--config=/etc/otel/config.yaml"]
     environment:
@@ -105,7 +68,16 @@ services:
 
 **Note**: The `platform: linux/amd64` specification ensures compatibility with Apple Silicon Macs by running the container under emulation.
 
-### Collector Configuration
+To start run command: `docker-compose up -d`
+
+The collector will start and be available on:
+
+- **gRPC endpoint**: `localhost:4317`
+- **HTTP endpoint**: `localhost:4318`
+- **Health check**: `http://localhost:13133/health/status`
+
+
+### Configuration
 
 The [config.yaml](./config.yaml) file defines the collector's behavior:
 
@@ -391,3 +363,7 @@ service:
         - batch
       exporters: [otlphttp/multiplayer]
 ```
+
+## License
+
+MIT — see [LICENSE](./LICENSE).
